@@ -1,17 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	cli "space_invaders/Cli"
+	spaceship "space_invaders/Game"
 	"time"
 )
-
-type gameLoop struct {
-	delta       time.Duration
-	lastUpdate  time.Time
-	accumulator time.Duration
-	slice       time.Duration
-}
 
 func stress(c *cli.Cli) {
 	for y := 0; y < c.Size.H; y++ {
@@ -23,43 +18,40 @@ func stress(c *cli.Cli) {
 
 func main() {
 	// init
-	c, err := cli.New()
+	c, err := cli.New(100)
 	if err != nil {
-		panic("cli.New(): Failed to retrieve window dimensions")
+		panic(fmt.Sprintf("cli.New(): failed to init cli handler, reason: %s", err))
 	}
-	gl := &gameLoop{lastUpdate: time.Now(), slice: time.Millisecond * 10} // update ratio
-	ticker := time.NewTicker(time.Millisecond * 150)                      // render ratio
+	ticker := time.NewTicker(time.Millisecond * 150) // render ratio
 
 	// handle ctrl+c
-	c.HandleSIGTERM(c.ShowCursor)
+	c.HandleSIGTERM(func() { c.MoveCursor(cli.Coord{X: 0, Y: 0}) }, c.ShowCursor)
 
 	// setup
 	c.ClearCli()
 	c.HideCursor()
 
-	for {
-		<-ticker.C
+	ss := spaceship.New(cli.Coord{X: 1, Y: 1}, cli.Green)
 
-		gl.delta = time.Since(gl.lastUpdate)
-		gl.lastUpdate = time.Now()
+	go c.HandleInput()
+
+	for range ticker.C {
+		<-ticker.C
+		c.ClearCli()
 
 		// update
-		for {
-			if gl.accumulator > gl.slice {
-				break
-			}
-
-			stress(c)
-			// c.ColorFprintfSprite([]string{" ⢀⣀⣾⣷⣀⡀ ", " ⣿⣿⣿⣿⣿⣿ "}, cli.Green, cli.Coord{X: 2, Y: 5})
-
-			// after update
-			gl.accumulator -= gl.slice
-
+		switch <-c.EventCh {
+		case "right":
+			ss.MoveRight()
+		case "left":
+			ss.MoveLeft()
 		}
 
+		// ss.MoveRight()
+
+		ss.Draw(c)
 		// draw
 		c.Render()
-		c.ClearCli()
 	}
 
 	// end

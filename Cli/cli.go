@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/mattn/go-tty"
 	"golang.org/x/term"
 )
 
@@ -19,8 +21,11 @@ type Size struct {
 }
 
 type Cli struct {
-	canvas *bufio.Writer
-	Size   Size
+	canvas  *bufio.Writer
+	Size    Size
+	tty     *tty.TTY
+	Update  *time.Ticker
+	EventCh chan string
 }
 
 const (
@@ -28,6 +33,13 @@ const (
 	hideCursor = "\033[?25l"
 	showCursor = "\033[?25h"
 	moveCursor = "\033[%d;%dH"
+)
+
+const (
+	left  = 'D'
+	right = 'C'
+	up    = 'A'
+	down  = 'B'
 )
 
 const (
@@ -43,17 +55,23 @@ const (
 
 var Colors = []string{Black, Red, Green, Yellow, Blue, Purple, Cyan, White}
 
-func New() (*Cli, error) {
+func New(tickMS time.Duration) (*Cli, error) {
 	canvas := bufio.NewWriter(os.Stdout)
 	w, h, err := term.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
 		return nil, err
 	}
 
-	return &Cli{canvas: canvas, Size: Size{
-		W: w,
-		H: h,
-	}}, nil
+	tty, err := tty.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer tty.Close()
+
+	update := time.NewTicker(time.Millisecond * tickMS)
+	ch := make(chan string)
+
+	return &Cli{canvas: canvas, Size: Size{W: w, H: h}, tty: tty, Update: update, EventCh: ch}, nil
 }
 
 // Handle cursor and cli functions
@@ -114,5 +132,23 @@ func (c *Cli) ColorFprintfSprite(s []string, color string, p Coord) {
 		p.Y += i
 		c.MoveCursor(p)
 		c.ColorFprint(sp, color)
+	}
+}
+
+// Input functions
+func (c *Cli) HandleInput() {
+	for {
+		<-c.Update.C
+		char, _ := c.tty.ReadRune()
+		switch char {
+		case left:
+			c.EventCh <- "left"
+		case right:
+			c.EventCh <- "right"
+		case up:
+			c.EventCh <- "up"
+		case down:
+			c.EventCh <- "down"
+		}
 	}
 }
