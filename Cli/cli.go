@@ -21,9 +21,9 @@ type Size struct {
 }
 
 type Cli struct {
-	canvas  *bufio.Writer
-	Size    Size
-	tty     *tty.TTY
+	canvas *bufio.Writer
+	Size   Size
+	// tty     *tty.TTY
 	Update  *time.Ticker
 	EventCh chan string
 }
@@ -55,23 +55,17 @@ const (
 
 var Colors = []string{Black, Red, Green, Yellow, Blue, Purple, Cyan, White}
 
-func New(tickMS time.Duration) (*Cli, error) {
+func New(tick time.Duration) (*Cli, error) {
 	canvas := bufio.NewWriter(os.Stdout)
 	w, h, err := term.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
 		return nil, err
 	}
 
-	tty, err := tty.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer tty.Close()
+	update := time.NewTicker(time.Millisecond * tick)
+	ch := make(chan string, 2)
 
-	update := time.NewTicker(time.Millisecond * tickMS)
-	ch := make(chan string)
-
-	return &Cli{canvas: canvas, Size: Size{W: w, H: h}, tty: tty, Update: update, EventCh: ch}, nil
+	return &Cli{canvas: canvas, Size: Size{W: w, H: h}, Update: update, EventCh: ch}, nil
 }
 
 // Handle cursor and cli functions
@@ -137,9 +131,15 @@ func (c *Cli) ColorFprintfSprite(s []string, color string, p Coord) {
 
 // Input functions
 func (c *Cli) HandleInput() {
+	tty, err := tty.Open()
+	if err != nil {
+		panic(err)
+	}
+	defer tty.Close()
+
 	for {
 		<-c.Update.C
-		char, _ := c.tty.ReadRune()
+		char, _ := tty.ReadRune()
 		switch char {
 		case left:
 			c.EventCh <- "left"

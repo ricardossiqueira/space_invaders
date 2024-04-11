@@ -18,11 +18,11 @@ func stress(c *cli.Cli) {
 
 func main() {
 	// init
-	c, err := cli.New(100)
+	c, err := cli.New(5)
 	if err != nil {
 		panic(fmt.Sprintf("cli.New(): failed to init cli handler, reason: %s", err))
 	}
-	ticker := time.NewTicker(time.Millisecond * 150) // render ratio
+	ticker := time.NewTicker(time.Millisecond * 10) // render ratio
 
 	// handle ctrl+c
 	c.HandleSIGTERM(func() { c.MoveCursor(cli.Coord{X: 0, Y: 0}) }, c.ShowCursor)
@@ -31,8 +31,9 @@ func main() {
 	c.ClearCli()
 	c.HideCursor()
 
-	ss := spaceship.New(cli.Coord{X: 1, Y: 1}, cli.Green)
+	ss := spaceship.New(cli.Coord{X: c.Size.W / 2, Y: c.Size.H - 3}, cli.Green)
 
+	// go handleInput(c.EventCh, *ticker)
 	go c.HandleInput()
 
 	for range ticker.C {
