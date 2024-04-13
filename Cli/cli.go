@@ -21,9 +21,8 @@ type Size struct {
 }
 
 type Cli struct {
-	canvas *bufio.Writer
-	Size   Size
-	// tty     *tty.TTY
+	canvas  *bufio.Writer
+	Size    Size
 	Update  *time.Ticker
 	EventCh chan string
 }
@@ -102,21 +101,24 @@ func (c *Cli) HandleSIGTERM(f ...func()) {
 }
 
 // Print functions
-func (c *Cli) Fprintf(s string, a ...any) {
+func (c *Cli) Fprintf(p Coord, s string, a ...any) {
+	c.MoveCursor(p)
 	fmt.Fprintf(c.canvas, s, a...)
 }
 
-func (c *Cli) Fprint(a ...any) {
+func (c *Cli) Fprint(p Coord, a ...any) {
+	c.MoveCursor(p)
 	fmt.Fprint(c.canvas, a...)
 }
 
 // Color print functions
-func (c *Cli) ColorFprintf(s string, color string, a ...any) {
-	args := append([]any{s}, a...)
-	fmt.Fprintf(c.canvas, color, args)
+func (c *Cli) ColorFprintf(p Coord, s string, color string, a ...any) {
+	c.MoveCursor(p)
+	fmt.Fprintf(c.canvas, color, fmt.Sprintf(s, a...))
 }
 
-func (c *Cli) ColorFprint(s string, color string) {
+func (c *Cli) ColorFprint(p Coord, s string, color string) {
+	c.MoveCursor(p)
 	fmt.Fprintf(c.canvas, color, s)
 }
 
@@ -124,8 +126,7 @@ func (c *Cli) ColorFprint(s string, color string) {
 func (c *Cli) ColorFprintfSprite(s []string, color string, p Coord) {
 	for i, sp := range s {
 		p.Y += i
-		c.MoveCursor(p)
-		c.ColorFprint(sp, color)
+		c.ColorFprint(p, sp, color)
 	}
 }
 
